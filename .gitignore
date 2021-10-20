@@ -1,0 +1,9 @@
+.dynamodb 
+/dynamodb
+
+.env 
+node_modules 
+/node_modules
+
+.npmignore
+

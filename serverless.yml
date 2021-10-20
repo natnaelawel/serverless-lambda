@@ -1,0 +1,131 @@
+service: sample-serverless-project
+# app and org for use with dashboard.serverless.com
+#app: your-app-name
+#org: your-org-name
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+frameworkVersion: "3"
+
+# use dotEnv plugin to load environment variables from .env file
+# https://www.serverless.com/plugins/serverless-dotenv-plugin/
+
+useDotenv: true
+
+package: #package all the functions into a single zip file
+  individually: false
+
+plugins:
+  - serverless-dotenv-plugin #serverless-dotenv-plugin to load environment variables from .env file
+  - serverless-dynamodb-local
+  - serverless-offline #serverless-offline needs to be last in the list
+
+custom:
+  businessTableName: "business-table"
+  businessUsersTableName: "business-users-table"
+  userPoolName: "sample-serverless-project-user-pool"
+  userPoolClientName: "sample-serverless-project-client"
+  endpoints:
+    dynamodb-url: "http://localhost:8000"
+
+  # dynamodb:
+  #   stages:
+  #     - dev
+  #   start:
+  #     port: 8000
+  #     inMemory: true
+  #     heapInitial: 200m
+  #     heapMax: 1g
+  #     migrate: true
+  #     seed: true
+  #     convertEmptyValues: true
+  # Uncomment only if you already have a DynamoDB running locally
+  # noStart: true
+  # migration:
+  #   dir: file(./src/Resources.yml)
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: us-east-1
+  stage: dev
+  iam:
+    role:
+      statements:
+        - Effect: "Allow"
+          Action:
+            - "dynamodb:*"
+            - "cognito-idp:*"
+          Resource:
+            - "arn:aws:cognito-idp:${aws:region}:*:userpool/${self:custom.userPoolName}"
+            - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.BUSINESS_TABLE}"
+            - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.BUSINESS_USERS_TABLE}"
+  environment:
+    BUSINESS_TABLE: ${self:custom.businessTableName}
+    BUSINESS_USERS_TABLE: ${self:custom.businessUsersTableName}
+    USER_POOL_NAME: ${self:custom.userPoolName}
+    USER_POOL_CLIENT_NAME: ${self:custom.userPoolClientName}
+    # COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID}
+    # COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID}
+    DYNAMODB_URL: ${self:custom.endpoints.dynamodb-url}
+    COGNITO_CLIENT_ID:
+      Ref: CognitoUserPoolClient
+    COGNITO_USER_POOL_ID:
+      Ref: CognitoUserPool
+
+functions:
+  # loginUser:
+  #   handler: src/authHandler.authHandler
+  #   events:
+  #     - http:
+  #         path: login
+  #         method: ANY
+  #         cors: true
+  #     - http:
+  #         path: login/{proxy+}
+  #         method: ANY
+  #         cors: true
+
+  # signupUser:
+  #   handler: src/authHandler.authHandler
+  #   events:
+  #     - http:
+  #         path: signup
+  #         method: ANY
+  #         cors: true
+  #     - http:
+  #         path: signup/{proxy+}
+  #         method: ANY
+  #         cors: true
+
+  app:
+    handler: src/handler.handler
+    events:
+      - http:
+          path: /
+          method: ANY
+          cors: true
+          # authorizer:
+          #   type: COGNITO_USER_POOLS
+          #   authorizerId:
+          #     Ref: ApiGatewayAuthorizer
+          #   claims:
+          #     - email
+          #     - cognito:username
+          #     - sub
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors: true
+          # authorizer:
+          #   type: COGNITO_USER_POOLS
+          #   authorizerId:
+          #     Ref: ApiGatewayAuthorizer
+          #   claims:
+          #     - email
+          #     - cognito:username
+          #     - sub
+
+resources:
+  - ${file(./src/Resources.yml)}
+  - ${file(./src/ApiGatewayAuthorizer.yml)}
